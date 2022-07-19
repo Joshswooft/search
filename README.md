@@ -175,6 +175,8 @@ The simplest possible way to accomplish this would be to cut the data into S par
 
 <img src="./readme_assets/distributed_hash.png" alt="simple distributed hashing">
 
+<img src="./readme_assets/hash_table.png" alt="hash table">
+
 
 i.e. `server = server_list[ hash(key) % N ]`
 
@@ -182,9 +184,25 @@ This allows us anyone to identify the correct server without needing to introduc
 - If a node goes down (or new nodes introduced) then `N` would be changed and the server chosen would be different
 - Uneven distribution of data (some nodes with extremely heavy loads whilst others have nothing).
 
+Advantages of P2P:
+- No single point of failure
+- Resistant to censorship
+- Efficient 
+- High availability
+- More control over resources
+
+Disadvantages of centralized approach:
+- In a centralized model the controlling server can only be scaled vertically which might become the bottleneck.
+- Highly dependent on network connectivity (if the nodes lose connection to the server node then system fails)
+- No graceful degradation
+- Difficult to do server maintainance (can't take down the server node so updates have to be done on the fly which could break the system)
+
 To solve this we introduce `consistent hashing`. 
 
 <img src="./readme_assets/consistent_hashing.png" alt="consistent hashing diagram">
+
+- ID(node) = hash(IP, port)
+- ID(key) = hash(key)
 
 Consistent hashing evenly distributes K objects across N bins as K/N for each. Thus, when N changes not all objects need to be moved.
 
@@ -200,13 +218,28 @@ We can extend this idea of virtual nodes by introducing weights which allows us 
 
 #### Lookups
 
+A fundamental problem that confronts peer-to-peer applications is the efficient location of the node that stores a desired data item. 
+
 The basic approach for lookups would be to pass the key round the circle and ask each node can they find the key's value. This would be a O(n) look up. 
 
-To avoid linear search we can use the chord protocol. 
+To avoid linear search we can use the chord protocol. Chord is a distributed lookup protocol that addresses this issue.
+It supports one operation: given a key, it maps the key to the node.
+
+Characteristics:
+- Simplicity, correctness, performance
+- each chord node needs routing information about only a few other nodes
+- resolves lookups via messages to other nodes
+- maintains routing information as nodes join/leave system
 
 <img src="./readme_assets/chord.png" alt="chord protocol">
 
 The chord protocol relies on using a finger table (a routing table) to find the correct node for a given key.
+
+- Knows more about nodes closer to it than further away.
+- finger[i] = successor(n + 2^(i - 1))
+
+<img src="./readme_assets/chord_logic.png" alt="chord alg">
+
 
 <img src="./readme_assets/finger_table_lookup.png" alt="lookup">
 
@@ -221,7 +254,6 @@ There's various methods of handling distributed writes:
 - Paxos/Raft Consensus style algorithm to decide on what value should be written 
 - Vector clocks (difficult to implement)
 - Last write wins (high chance of data loss but simple)
-
 
 
 For failure resiliance I decided to go with a write-ahead log style system which is used in dgraph and casandra. Every write that is created is added to a log detailing what to write and where. This allows us to recover from a system crash by replaying all the logs since the last write.
@@ -261,6 +293,8 @@ There are many attributes to products which make them appealing. Some of the one
 - global trendiness
 
 Based on these factors we may want to skew the scoring of BM25 to create a more personalized search. This allows us to do powerful things like promote new products, boost certain fields or disable showing products that are out of stock. 
+
+Each shard will return top results (defaulting to 10) and send them back to coordinator. The coordinator will then merge these results together to get the top global results, which it then returns to the user.
 
 
 #### Mispellings
